@@ -19,6 +19,7 @@
 @property (weak, nonatomic) IBOutlet UICollectionViewFlowLayout *collectionViewLayout;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *leading;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *trailing;
+@property (weak, nonatomic) IBOutlet NSLayoutConstraint *bottomLayoutContain;
 
 @property (nonatomic , strong) NSArray *weekDayArray;
 @property (nonatomic , strong) NSDate *date;
@@ -31,7 +32,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [self getFirstDayDate];
+//    [self getFirstDayDate];
     
     
     _collectionView.backgroundColor = [UIColor yellowColor];
@@ -44,6 +45,7 @@
     _weekDayArray = @[@"日",@"一",@"二",@"三",@"四",@"五",@"六"];
     _date = [NSDate date];
     _today = _date;
+    _date = [NSDate dateWithTimeInterval:30 * 24*60*60 sinceDate:_date];
     
     // Do any additional setup after loading the view.
     _collectionViewLayout.itemSize = CGSizeMake((SCREEN_WIDTH- b * 2)/7, (SCREEN_WIDTH- b * 2)/7);//宽高
@@ -57,18 +59,12 @@
     // 滚动方向
     _collectionViewLayout.scrollDirection = UICollectionViewScrollDirectionVertical;//纵向滑动
     
+    
 //    [self.collectionView registerClass:[UICollectionViewCell class] forCellWithReuseIdentifier:@"cell"];
     //如果在SB中设置了identifier这里就可以不写这句，但是如果两处都不写的话就会导致崩溃
     
-//    for (NSInteger i = 0; i < 6; i++) {
-//        CALayer * layer = [[CALayer alloc]init];
-//        layer.frame = CGRectMake(0, (i+ 1) * SCREEN_WIDTH/7, SCREEN_WIDTH, 1);
-//        layer.backgroundColor = [UIColor blackColor].CGColor;
-//        [self.view.layer addSublayer:layer];
-//        
-//    }
-    
 }
+
 #pragma -mark collectionView delegate
 - (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView{
     return 2;
@@ -78,7 +74,17 @@
     if (section == 0) {
         return _weekDayArray.count;
     } else {
-        return 42;
+        NSInteger rows = [self firstWeekdayInThisMonth:_date] + [self totaldaysInMonth:_date] + 7;
+        CALayer * layer = [[CALayer alloc]init];
+        layer.backgroundColor = [UIColor redColor].CGColor;
+        if (rows%7 == 0) {
+            layer.frame = CGRectMake(0,  (rows/7) * _collectionViewLayout.itemSize.height, SCREEN_WIDTH, 0.5);
+        }else{
+            layer.frame = CGRectMake(0,  (rows/7 + 1) * _collectionViewLayout.itemSize.height, SCREEN_WIDTH, 0.5);
+        }
+        [_collectionView.layer addSublayer:layer];
+        _bottomLayoutContain.constant = SCREEN_HEIGHT - 64 - 1 - layer.frame.origin.y;
+        return rows;
     }
 }
 
@@ -86,10 +92,10 @@
 {
     static NSString *identify = @"cell";
     CollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:identify forIndexPath:indexPath];
+    cell.label.font = [UIFont systemFontOfSize:15 - indexPath.section];
     if (indexPath.section == 0) {
         [cell.label setText:_weekDayArray[indexPath.row]];
         [cell.label setTextColor:[UIColor redColor]];
-        cell.label.font = [UIFont systemFontOfSize:14];
     } else {
         NSInteger daysInThisMonth = [self totaldaysInMonth:_date];
         NSInteger firstWeekday = [self firstWeekdayInThisMonth:_date];
@@ -107,30 +113,31 @@
             [cell.label setText:[NSString stringWithFormat:@"%li",(long)day]];
             [cell.label setTextColor:[UIColor colorWithHexString:@"#6f6f6f"]];
             
-            //this month
-            if ([_today isEqualToDate:_date]) {
-                if (day == [self day:_date]) {
-                    [cell.label setTextColor:[UIColor colorWithHexString:@"#4898eb"]];
-                } else if (day > [self day:_date]) {
-                    [cell.label setTextColor:[UIColor colorWithHexString:@"#cbcbcb"]];
-                }
-            } else if ([_today compare:_date] == NSOrderedAscending) {
-                [cell.label setTextColor:[UIColor colorWithHexString:@"#cbcbcb"]];
-            }
-            
-            
-            
+//            //this month
+//            if ([_today isEqualToDate:_date]) {
+//                
+//            } else if ([_today compare:_date] == NSOrderedAscending) {
+//                [cell.label setTextColor:[UIColor colorWithHexString:@"#cbcbcb"]];
+//            }
 //            [calendar setFirstWeekday:1];//1.Sun. 2.Mon. 3.Thes. 4.Wed. 5.Thur. 6.Fri. 7.Sat.
             
-            BOOL m = [self getweekDayWithDate:[self getDateWithNumber:(i- firstWeekday)]];
+            BOOL m = [self getweekDayWithDate:[self getDateWithNumber:(i- firstWeekday)]];//周末
             if (m) {
                 [cell.label setTextColor:[UIColor redColor]];
+            }else{
+                cell.label.textColor = day > [self day:_date] ? [UIColor colorWithHexString:@"#cbcbcb"] : [UIColor colorWithHexString:@"#4898eb"];
+            }
+            if (day == [self day:_date]) {
+                cell.label.textColor = [UIColor whiteColor];
+                cell.label.backgroundColor = [UIColor redColor];
+                cell.label.layer.cornerRadius = 10.5;
+                cell.label.layer.masksToBounds = YES;
             }
         }
     }
-//    cell.backgroundColor = [UIColor yellowColor];
     CALayer * layer = [[CALayer alloc]init];
-    layer.frame = CGRectMake(0,  SCREEN_WIDTH/7-1, SCREEN_WIDTH/7, 1);
+//    layer.frame = CGRectMake(0,  SCREEN_WIDTH/7-1, SCREEN_WIDTH/7, 1);
+    layer.frame = CGRectMake(0,  0, SCREEN_WIDTH/7, 0.5);
     layer.backgroundColor = [UIColor blackColor].CGColor;
     [cell.contentView.layer addSublayer:layer];
     return cell;
@@ -160,7 +167,21 @@
     }
     return NO;
 }
-
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath{
+    if (indexPath.section) {
+        NSInteger daysInThisMonth = [self totaldaysInMonth:_date];
+        NSInteger firstWeekday = [self firstWeekdayInThisMonth:_date];
+        
+        NSInteger day = 0;
+        NSInteger i = indexPath.row;
+        
+        if ( i > firstWeekday && i < firstWeekday + daysInThisMonth - 1) {
+            
+            day = i - firstWeekday + 1;
+            NSLog(@"hahha %ld",(long)day);
+        }
+    }
+}
 
 
 #pragma mark - date
@@ -181,14 +202,14 @@
     return [components year];
 }
 
-
+static NSDate *firstDayOfMonthDate;
 - (NSInteger)firstWeekdayInThisMonth:(NSDate *)date{
     NSCalendar *calendar = [NSCalendar currentCalendar];
     
     [calendar setFirstWeekday:1];//1.Sun. 2.Mon. 3.Thes. 4.Wed. 5.Thur. 6.Fri. 7.Sat.
     NSDateComponents *comp = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay) fromDate:date];
     [comp setDay:1];
-    NSDate *firstDayOfMonthDate = [calendar dateFromComponents:comp];
+    firstDayOfMonthDate = [calendar dateFromComponents:comp];
     
     NSUInteger firstWeekday = [calendar ordinalityOfUnit:NSCalendarUnitWeekday inUnit:NSCalendarUnitWeekOfMonth forDate:firstDayOfMonthDate];
     return firstWeekday - 1;
@@ -250,20 +271,20 @@
     NSDate * date = [NSDate dateWithTimeInterval:3600 * 24 * (number)sinceDate:firstDayOfMonthDate];
     return date;
 }
-static NSDate * firstDayOfMonthDate;
+
 
 /**
 获取当前月的第一天的NSDate
  @return 当前月的第一天的NSDate
  */
-- (NSDate *)getFirstDayDate{
-    NSCalendar *calendar = [NSCalendar currentCalendar];
-    NSDateComponents *comp = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay) fromDate:[NSDate date]];
-    [comp setDay:1];
-    firstDayOfMonthDate = [calendar dateFromComponents:comp];
-    firstDayOfMonthDate = [NSDate dateWithTimeInterval:3600 * 8 sinceDate:firstDayOfMonthDate];
-    return firstDayOfMonthDate;
-}
+//- (NSDate *)getFirstDayDate{
+//    NSCalendar *calendar = [NSCalendar currentCalendar];
+//    NSDateComponents *comp = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay) fromDate:[NSDate date]];
+//    [comp setDay:1];
+//    firstDayOfMonthDate = [calendar dateFromComponents:comp];
+//    firstDayOfMonthDate = [NSDate dateWithTimeInterval:3600 * 8 sinceDate:firstDayOfMonthDate];
+//    return firstDayOfMonthDate;
+//}
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
